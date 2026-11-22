@@ -1,0 +1,47 @@
+{
+  "descripcion": "Segmentación exploratoria municipio-año; no ranking ni viabilidad financiera",
+  "fuente": "Resumen integrado IGAC / DANE, 2021–2023",
+  "observaciones": 48,
+  "municipios": 16,
+  "anios": [
+    2021,
+    2022,
+    2023
+  ],
+  "variables": [
+    "registros_x1000hab",
+    "dinamica_x1000hab",
+    "pct_dinamica",
+    "pct_registros_con_valor",
+    "licencias_vivienda_x1000hab",
+    "unidades_vivienda_x1000hab",
+    "unidades_obra_nueva_x1000hab"
+  ],
+  "descripciones_variables": {
+    "registros_x1000hab": "Actos registrales por 1.000 habitantes",
+    "dinamica_x1000hab": "Actos con dinámica por 1.000 habitantes",
+    "pct_dinamica": "Porcentaje de registros con dinámica",
+    "pct_registros_con_valor": "Porcentaje de registros con valor válido",
+    "licencias_vivienda_x1000hab": "Licencias por 1.000 habitantes",
+    "unidades_vivienda_x1000hab": "Unidades autorizadas por 1.000 habitantes",
+    "unidades_obra_nueva_x1000hab": "Obra nueva autorizada por 1.000 habitantes"
+  },
+  "preparacion": "StandardScaler sobre siete indicadores; PCA con dos componentes",
+  "modelo": "GaussianMixture (EM)",
+  "grupos": 3,
+  "covarianza": "full",
+  "semilla": 42,
+  "inicializaciones": 10,
+  "reg_covar": 0.001,
+  "convergencia": true,
+  "iteraciones_em": 15,
+  "varianza_pc1_pct": 51.415359867951395,
+  "varianza_pc2_pct": 20.80309778033989,
+  "varianza_pca2_pct": 72.21845764829129,
+  "silueta": 0.5483857460828688,
+  "bic": 344.9639157038606,
+  "aic": 313.15349851842643,
+  "ari_minimo_semillas": 0.9798830075617064,
+  "interpretacion": "Las probabilidades representan pertenencia estimada a grupos; no probabilidad de éxito inmobiliario",
+  "sha256_archivo_origen": "404ecadcfffa6149b476474442727a502b50a665e11d77bd057a0914d42002c3"
+}
