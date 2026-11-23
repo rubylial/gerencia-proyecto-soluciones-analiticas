@@ -9,6 +9,7 @@ existen resultados reales en dashboard/data/gmm_resultados.csv.
 from pathlib import Path
 import json
 import re
+import joblib
 
 import numpy as np
 import pandas as pd
@@ -35,6 +36,7 @@ RUTAS_DATOS = [
 RUTA_GMM = BASE_DIR / "data" / "gmm_resultados.csv"
 RUTA_GMM_CONFIG = BASE_DIR / "data" / "gmm_config.json"
 RUTA_GMM_EVALUACION = BASE_DIR / "data" / "gmm_evaluacion.csv"
+RUTA_GMM_MODELO = BASE_DIR / "data" / "gmm_modelo.joblib"
 
 AZUL = "#243F5C"
 AZUL_MEDIO = "#3C72A8"
@@ -250,6 +252,10 @@ ETIQUETAS = {
 VARS_NORM = [
     "registros_x1000hab", "dinamica_x1000hab", "licencias_vivienda_x1000hab",
     "unidades_vivienda_x1000hab", "unidades_obra_nueva_x1000hab"]
+VARS_MODELO = [
+    "registros_x1000hab", "dinamica_x1000hab", "pct_dinamica",
+    "licencias_vivienda_x1000hab", "unidades_vivienda_x1000hab",
+    "unidades_obra_nueva_x1000hab"]
 VARS_ABSOLUTAS = [
     "registros", "dinamica", "registros_con_valor", "licencias_vivienda",
     "unidades_vivienda", "unidades_obra_nueva", "area_vivienda_m2"]
@@ -755,12 +761,15 @@ with tab_pca:
     with st.container(border=True):
         anio_pca = st.selectbox("Año", anios_disponibles,
             index=len(anios_disponibles) - 1, key="anio_pca")
-        base_pca = df_filtrado[df_filtrado["anio"] == anio_pca].dropna(subset=VARS_NORM).copy()
+        # Misma base y transformación del informe: ajuste sobre los 48 municipio-año.
+        artefactos = joblib.load(RUTA_GMM_MODELO)
+        variables_pca = artefactos["variables"]
+        if variables_pca != VARS_MODELO:
+            raise ValueError("La configuración del modelo no coincide con los seis indicadores documentados.")
+        base_pca = df_filtrado[df_filtrado["anio"] == anio_pca].dropna(subset=VARS_MODELO).copy()
         if len(base_pca) >= 3:
-            estandarizador = StandardScaler()
-            x_pca = estandarizador.fit_transform(base_pca[VARS_NORM])
-            modelo_pca = PCA()
-            componentes = modelo_pca.fit_transform(x_pca)
+            modelo_pca = artefactos["pca"]
+            componentes = modelo_pca.transform(artefactos["escalador"].transform(base_pca[VARS_MODELO].to_numpy(dtype=float)))
             base_pca["PC1"] = componentes[:, 0]
             base_pca["PC2"] = componentes[:, 1]
             var_ind = modelo_pca.explained_variance_ratio_ * 100
@@ -782,19 +791,25 @@ with tab_pca:
                     hover_name="municipio", color_discrete_sequence=[AZUL_MEDIO])
                 cargas = modelo_pca.components_[:2, :]
                 factor = float(np.abs(componentes[:, :2]).max()) * .75
-                for i, variable in enumerate(VARS_NORM):
+                for i, variable in enumerate(VARS_MODELO):
                     fig_biplot.add_annotation(ax=0, ay=0,
-                        x=float(cargas[0, i] * factor), y=float(cargas[1, i] * factor),
-                        showarrow=True, arrowhead=2, text=etiqueta(variable).replace(" por 1.000 hab.", ""),
-                        font=dict(size=9, color=AZUL))
+                        x=float(cargas[0, i] * factor),
+                        y=float(cargas[1, i] * factor),
+                        showarrow=True,
+                        arrowhead=2,
+                        text=f"V{i + 1}",
+                        font=dict(size=10, color=AZUL))                                      
                 fig_biplot.update_traces(textposition="top center", marker=dict(size=9))
                 mostrar(estilo_grafico(fig_biplot, alto=390))
+                st.caption("Variables del PCA: " + " | ".join(
+                    f"V{i + 1}: {etiqueta(variable)}"
+                    for i, variable in enumerate(VARS_MODELO)))                
             with st.expander("Ver tabla de cargas por componente"):
                 pesos = pd.DataFrame(modelo_pca.components_.T,
-                    index=[etiqueta(v) for v in VARS_NORM],
+                    index=[etiqueta(v) for v in VARS_MODELO],
                     columns=[f"PC{i+1}" for i in range(modelo_pca.components_.shape[0])]).round(3)
                 tabla_datos(pesos.reset_index().rename(columns={"index": "Indicador"}))
-            st.caption("PCA exploratorio de cinco tasas para el año seleccionado; no reproduce necesariamente el PCA de siete variables del informe.")
+            st.caption("PCA de seis indicadores ajustado sobre las 48 observaciones de 2021–2023; el selector de año únicamente filtra los puntos mostrados. Varianza y cargas corresponden al modelo global del informe.")
         else:
             st.info("Se requieren al menos tres municipios con información completa.")
 
@@ -853,8 +868,8 @@ with tab_kmeans:
         with controles_km[0]:
             anio_km = st.selectbox("Año", anios_disponibles,
                 index=len(anios_disponibles) - 1, key="anio_km")
-        base_km = df_filtrado[df_filtrado["anio"] == anio_km].dropna(subset=VARS_NORM).copy()
-        max_k = min(6, len(base_km) - 1)
+        base_km = df_filtrado[df_filtrado["anio"] == anio_km].dropna(subset=VARS_MODELO).copy()
+        max_k = min(4, len(df) - 1)
         with controles_km[1]:
             if max_k >= 2:
                 numero_clusters = st.slider("Número de grupos (k)", 2, max_k,
@@ -862,21 +877,25 @@ with tab_kmeans:
             else:
                 numero_clusters = None
         if numero_clusters is not None:
-            esc = StandardScaler()
-            x_km = esc.fit_transform(base_km[VARS_NORM])
+            # Ajuste global idéntico al de la tabla comparativa PCA/GMM.
+            artefactos_km = joblib.load(RUTA_GMM_MODELO)
+            df_modelo = df.sort_values(["divipola", "anio"]).reset_index(drop=True)
+            x_km = artefactos_km["pca"].transform(
+                artefactos_km["escalador"].transform(df_modelo[VARS_MODELO].to_numpy(dtype=float)))
             km = KMeans(n_clusters=numero_clusters, random_state=42, n_init=10)
             etiquetas_km = km.fit_predict(x_km)
-            base_km["grupo"] = etiquetas_km.astype(str)
+            mapa_km = df_modelo[["divipola", "anio"]].copy()
+            mapa_km["grupo"] = etiquetas_km.astype(str)
+            mapa_km["PC1"] = x_km[:, 0]
+            mapa_km["PC2"] = x_km[:, 1]
+            base_km = base_km.merge(mapa_km, on=["divipola", "anio"], how="left", validate="one_to_one")
             sil = calcular_silueta(x_km, etiquetas_km)
-            st.metric("Coeficiente de silueta", numero(sil, 3))
-            pc = PCA(n_components=2).fit_transform(x_km)
-            base_km["PC1"] = pc[:, 0]
-            base_km["PC2"] = pc[:, 1]
+            st.metric("Coeficiente de silueta (48 observaciones)", numero(sil, 3))
             grupo_col, miembros_col = st.columns([1.25, 1], gap="medium")
             with grupo_col:
                 titulo_panel("Distribución de municipios por grupo")
                 figura_km = px.scatter(base_km, x="PC1", y="PC2", color="grupo",
-                    text="municipio", hover_data=VARS_NORM,
+                    text="municipio", hover_data=VARS_MODELO,
                     color_discrete_sequence=COLORES)
                 figura_km.update_traces(textposition="top center", marker=dict(size=10))
                 mostrar(estilo_grafico(figura_km, alto=440))
@@ -886,15 +905,15 @@ with tab_kmeans:
                     lista = ", ".join(sorted(base_km[base_km["grupo"] == grupo]["municipio"].tolist()))
                     st.markdown(f"**Grupo {grupo}** | {lista}")
                 titulo_panel("Promedios de los grupos")
-                promedio_km = base_km.groupby("grupo")[VARS_NORM].mean().round(2)
-                promedio_vis = promedio_km.rename(columns={v: etiqueta(v) for v in VARS_NORM})
+                promedio_km = base_km.groupby("grupo")[VARS_MODELO].mean().round(2)
+                promedio_vis = promedio_km.rename(columns={v: etiqueta(v) for v in VARS_MODELO})
                 tabla_datos(promedio_vis.reset_index().rename(columns={"grupo": "Grupo"}))
 
             with st.container(border=True):
                 titulo_panel("Perfil relativo de cada grupo")
                 rangos = (promedio_km.max() - promedio_km.min()).replace(0, 1)
                 perfil = ((promedio_km - promedio_km.min()) / rangos).fillna(0)
-                theta = [etiqueta(v).replace(" por 1.000 hab.", "") for v in VARS_NORM]
+                theta = [etiqueta(v).replace(" por 1.000 hab.", "") for v in VARS_MODELO]
                 figura_radar = go.Figure()
                 for j, grupo in enumerate(perfil.index):
                     vals = perfil.loc[grupo].to_numpy()
@@ -907,7 +926,7 @@ with tab_kmeans:
 
             with st.expander("Evaluación de la silueta según el número de grupos"):
                 valores_sil = []
-                valores_k = list(range(2, min(6, len(base_km) - 1) + 1))
+                valores_k = [2, 3, 4]
                 for k in valores_k:
                     nuevos = KMeans(n_clusters=k, random_state=42, n_init=10).fit_predict(x_km)
                     valores_sil.append(calcular_silueta(x_km, nuevos))
@@ -916,7 +935,7 @@ with tab_kmeans:
                     color_discrete_sequence=[AZUL_MEDIO])
                 fig_sil.update_xaxes(tickmode="array", tickvals=valores_k)
                 mostrar(estilo_grafico(fig_sil, alto=300))
-            st.caption("K-Means se ajusta al año y municipios seleccionados. Es un ejercicio exploratorio independiente del agrupamiento del informe.")
+            st.caption("K-Means se ajusta a las 48 observaciones y dos componentes PCA del informe; el año y los filtros solamente modifican la visualización de municipios.")
         else:
             st.info("No hay suficientes municipios para probar K-Means con los filtros actuales.")
 
@@ -1079,9 +1098,9 @@ with tab_gmm:
                             "grupos_efectivos", "convergencia") if col in evaluacion_gmm.columns]
                         tabla_datos(evaluacion_gmm[columnas_eval].round(3))
                         if configuracion_gmm:
-                            st.caption("Modelo: GMM con covarianza full | Siete variables estandarizadas | "
+                            st.caption("Modelo: GMM con covarianza full | Seis indicadores estandarizados | "
                                 "PCA con dos componentes | 48 observaciones municipio-año (10 del Valle de Aburrá y 6 de referencia). "
-                                "La pestaña de PCA interactivo utiliza cinco indicadores, por lo que no es la misma configuración.")
+                                "PCA, K-Means y GMM utilizan la misma base global de seis indicadores; los filtros solo cambian la visualización.")
 
                 exportar_csv(fusion.drop(columns=["lat", "lon"], errors="ignore"),
                     "resultados_gmm_filtrados.csv")
