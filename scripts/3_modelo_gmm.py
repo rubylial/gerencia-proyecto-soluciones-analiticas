@@ -1,6 +1,6 @@
 """Construye el modelo GMM del anteproyecto y exporta resultados verificables.
 
-Metodología alineada con la Guía 4: siete indicadores, StandardScaler,
+Metodología revisada: seis indicadores del mercado, StandardScaler,
 PCA con dos componentes y GMM con tres grupos (por defecto).
 No es un modelo de recomendación financiera ni un ranking de municipios.
 """
@@ -32,7 +32,6 @@ INDICADORES = [
     "registros_x1000hab",
     "dinamica_x1000hab",
     "pct_dinamica",
-    "pct_registros_con_valor",
     "licencias_vivienda_x1000hab",
     "unidades_vivienda_x1000hab",
     "unidades_obra_nueva_x1000hab"]
@@ -41,7 +40,6 @@ NOMBRES = {
     "registros_x1000hab": "Actos registrales por 1.000 habitantes",
     "dinamica_x1000hab": "Actos con dinámica por 1.000 habitantes",
     "pct_dinamica": "Porcentaje de registros con dinámica",
-    "pct_registros_con_valor": "Porcentaje de registros con valor válido",
     "licencias_vivienda_x1000hab": "Licencias por 1.000 habitantes",
     "unidades_vivienda_x1000hab": "Unidades autorizadas por 1.000 habitantes",
     "unidades_obra_nueva_x1000hab": "Obra nueva autorizada por 1.000 habitantes"}
@@ -166,7 +164,7 @@ def construir_modelo(base, numero_grupos=3, semilla=42):
         "anios": sorted(int(a) for a in base["anio"].unique()),
         "variables": INDICADORES,
         "descripciones_variables": NOMBRES,
-        "preparacion": "StandardScaler sobre siete indicadores; PCA con dos componentes",
+        "preparacion": "StandardScaler sobre seis indicadores de actividad inmobiliaria; PCA con dos componentes",
         "modelo": "GaussianMixture (EM)",
         "grupos": int(numero_grupos),
         "covarianza": "full",
@@ -206,10 +204,10 @@ def exportar(resultados, evaluacion, perfiles, resumen_anual, estabilidad, metad
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Reproduce GMM de la Guía 4 para visualizarlo en Streamlit.")
+    parser = argparse.ArgumentParser(description="Reproduce PCA y GMM revisados para visualizar resultados en Streamlit.")
     parser.add_argument("--entrada", type=str, help="Ruta opcional del resumen Excel")
     parser.add_argument("--k", type=int, choices=[2, 3, 4], default=3,
-        help="Número de grupos; valor por defecto 3, como en la Guía 4")
+        help="Número de grupos; valor por defecto 3, con fines exploratorios")
     parser.add_argument("--salida", type=str, help="Carpeta opcional para los CSV y el modelo")
     args = parser.parse_args()
     archivo = obtener_ruta(args.entrada)
