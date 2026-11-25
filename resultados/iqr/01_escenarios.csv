@@ -1,0 +1,5 @@
+escenario,registros_evaluados,atipicos,proporcion_pct,atipicos_altos,atipicos_bajos,municipio_anio_excluidos_por_menos_de_30
+"10 municipios, folio único",79084,5281,6.68,5172,109,0
+"10 municipios, todos los folios",197463,8608,4.36,8608,0,0
+"16 municipios, folio único",251856,24260,9.63,24137,123,0
+"16 municipios, todos los folios",487140,29677,6.09,29677,0,0
