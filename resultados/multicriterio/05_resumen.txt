@@ -1,0 +1,57 @@
+RESUMEN EVALUACIÓN MULTICRITERIO
+============================================================
+Criterios: Compraventas por 1.000 hab.; Unidades de vivienda nueva autorizadas por 1.000 hab.; Crecimiento de la población 2021-2023 (%)
+Normalización: Min-Max entre los 10 municipios del Valle de Aburrá
+
+Indicadores originales:
+             compraventas_x1000hab  obra_nueva_x1000hab  crecimiento_poblacion_pct
+municipio                                                                         
+Medellín                    14.924                1.903                      1.816
+Barbosa                      9.539                0.997                      1.848
+Bello                       16.317                4.659                      1.790
+Caldas                      16.591                9.233                      1.831
+Copacabana                  17.018                4.831                      1.854
+Envigado                    30.550                5.686                      1.795
+Girardota                   11.985                4.941                      1.824
+Itagüí                      16.327                6.287                      1.814
+La Estrella                 28.195                9.743                      1.801
+Sabaneta                    69.011               23.644                      1.738
+
+Ranking con pesos iguales:
+            municipio  puntaje
+posicion                      
+1            Sabaneta    0.667
+2          Copacabana    0.432
+3              Caldas    0.427
+4         La Estrella    0.415
+5            Envigado    0.349
+6              Itagüí    0.334
+7           Girardota    0.319
+8             Barbosa    0.317
+9            Medellín    0.268
+10              Bello    0.241
+
+Sensibilidad: 66 combinaciones de pesos (paso 10 %, suma 100 %)
+             veces_en_top3  veces_primero  pct_en_top3
+municipio                                             
+Sabaneta                51             45        77.27
+Caldas                  45              0        68.18
+La Estrella             37              0        56.06
+Copacabana              32             21        48.48
+Envigado                17              0        25.76
+Barbosa                 16              0        24.24
+Medellín                 0              0         0.00
+Bello                    0              0         0.00
+Girardota                0              0         0.00
+Itagüí                   0              0         0.00
+
+Escenarios con peso del crecimiento <= 30 % (38): primer lugar ->
+primero
+Sabaneta    38
+
+Escenarios con peso del crecimiento >= 50 % (21): primer lugar ->
+primero
+Copacabana    21
+
+Nota: es una preselección exploratoria, no una recomendación de inversión.
+Las ponderaciones son supuestos que la empresa debe validar.

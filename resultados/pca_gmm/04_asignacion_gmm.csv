@@ -1,0 +1,49 @@
+municipio,anio,grupo,perfil,prob_pertenencia,en_transicion,prob_grupo_A,prob_grupo_B,prob_grupo_C,PC1,PC2,log_densidad,atipico_multivariado
+El Retiro,2023,Grupo A,Mayor actividad registral,1.0,False,1.0,0.0,0.0,2.765,-0.625,-4.429,False
+Rionegro,2022,Grupo A,Mayor actividad registral,1.0,False,1.0,0.0,0.0,3.809,-2.123,-4.192,False
+Rionegro,2023,Grupo A,Mayor actividad registral,1.0,False,1.0,0.0,0.0,1.581,-1.14,-4.376,False
+Sabaneta,2021,Grupo A,Mayor actividad registral,1.0,False,1.0,0.0,0.0,3.402,-1.192,-3.494,False
+Sabaneta,2022,Grupo A,Mayor actividad registral,1.0,False,1.0,0.0,0.0,5.155,-1.423,-4.828,True
+Sabaneta,2023,Grupo A,Mayor actividad registral,1.0,False,1.0,0.0,0.0,4.079,-2.2,-4.328,False
+El Retiro,2021,Grupo B,Mayor licenciamiento de vivienda,1.0,False,0.0,1.0,0.0,3.069,2.422,-4.252,False
+El Retiro,2022,Grupo B,Mayor licenciamiento de vivienda,1.0,False,0.0,1.0,0.0,5.325,1.651,-5.815,True
+La Ceja,2021,Grupo B,Mayor licenciamiento de vivienda,0.987,False,0.0,0.987,0.013,1.301,1.458,-4.578,False
+La Ceja,2022,Grupo B,Mayor licenciamiento de vivienda,1.0,False,0.0,1.0,0.0,2.669,2.827,-5.174,True
+La Ceja,2023,Grupo B,Mayor licenciamiento de vivienda,0.976,False,0.0,0.976,0.024,1.103,1.655,-4.423,False
+Barbosa,2021,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.945,-0.276,-2.73,False
+Barbosa,2022,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.615,-1.963,-4.631,False
+Barbosa,2023,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.961,-0.133,-2.803,False
+Bello,2021,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.323,-0.304,-1.55,False
+Bello,2022,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-0.972,0.097,-1.337,False
+Bello,2023,Grupo C,Menor actividad registral y constructiva,0.999,False,0.0,0.001,0.999,-1.034,0.553,-1.662,False
+Bogotá,2021,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.527,0.11,-1.887,False
+Bogotá,2022,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.028,-0.156,-1.338,False
+Bogotá,2023,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.414,0.003,-1.661,False
+Caldas,2021,Grupo C,Menor actividad registral y constructiva,0.991,False,0.0,0.009,0.991,-1.232,1.107,-2.747,False
+Caldas,2022,Grupo C,Menor actividad registral y constructiva,0.998,False,0.0,0.002,0.998,-0.447,0.603,-1.866,False
+Caldas,2023,Grupo C,Menor actividad registral y constructiva,0.999,False,0.0,0.0,0.999,-0.497,0.263,-1.607,False
+Copacabana,2021,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.348,-1.236,-2.599,False
+Copacabana,2022,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.417,0.278,-1.813,False
+Copacabana,2023,Grupo C,Menor actividad registral y constructiva,0.999,False,0.001,0.0,0.999,-0.53,-0.063,-1.559,False
+Envigado,2021,Grupo C,Menor actividad registral y constructiva,0.992,False,0.008,0.0,0.992,-0.198,-0.565,-2.529,False
+Envigado,2022,Grupo C,Menor actividad registral y constructiva,0.984,False,0.016,0.0,0.984,-0.129,-0.873,-3.186,False
+Envigado,2023,Grupo C,Menor actividad registral y constructiva,0.997,False,0.003,0.0,0.997,-0.44,-1.06,-2.84,False
+Girardota,2021,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-0.939,0.281,-1.405,False
+Girardota,2022,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-0.924,-0.059,-1.318,False
+Girardota,2023,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.39,-0.683,-1.847,False
+Guarne,2021,Grupo C,Menor actividad registral y constructiva,0.971,False,0.0,0.029,0.971,-1.098,1.397,-3.243,False
+Guarne,2022,Grupo C,Menor actividad registral y constructiva,0.952,False,0.0,0.048,0.952,-0.935,1.524,-3.405,False
+Guarne,2023,Grupo C,Menor actividad registral y constructiva,0.972,False,0.0,0.028,0.972,-0.612,1.291,-2.777,False
+Itagüí,2021,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.077,-0.367,-1.421,False
+Itagüí,2022,Grupo C,Menor actividad registral y constructiva,0.996,False,0.001,0.003,0.996,-0.025,0.498,-2.524,False
+Itagüí,2023,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.51,-0.531,-1.877,False
+La Estrella,2021,Grupo C,Menor actividad registral y constructiva,0.999,False,0.001,0.0,0.999,-0.607,-0.084,-1.481,False
+La Estrella,2022,Grupo C,Menor actividad registral y constructiva,0.971,False,0.0,0.029,0.971,0.141,0.863,-3.201,False
+La Estrella,2023,Grupo C,Menor actividad registral y constructiva,0.993,False,0.007,0.0,0.993,-0.054,-0.162,-2.5,False
+Marinilla,2021,Grupo C,Menor actividad registral y constructiva,0.998,False,0.002,0.0,0.998,-0.375,-0.066,-1.777,False
+Marinilla,2022,Grupo C,Menor actividad registral y constructiva,0.992,False,0.0,0.008,0.992,-0.851,1.045,-2.3,False
+Marinilla,2023,Grupo C,Menor actividad registral y constructiva,0.999,False,0.0,0.001,0.999,-0.349,0.39,-1.849,False
+Medellín,2021,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.724,-0.496,-2.232,False
+Medellín,2022,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.554,-1.456,-3.229,False
+Medellín,2023,Grupo C,Menor actividad registral y constructiva,1.0,False,0.0,0.0,1.0,-1.751,-0.256,-2.24,False
+Rionegro,2021,Grupo C,Menor actividad registral y constructiva,0.72,True,0.28,0.0,0.72,0.436,-0.823,-4.775,False

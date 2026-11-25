@@ -189,18 +189,73 @@ def semaforo(val):
     else:
         return "🔴"
 
+
+# ============================================================
+# RESULTADOS DE LOS SCRIPTS DE ANÁLISIS (carpeta resultados/)
+# Generados con: python analisis/3_pca_gmm.py, 4_multicriterio.py, 5_iqr_atipicos.py
+# ============================================================
+RESULTADOS_DIR = (BASE_DIR / ".." / "resultados").resolve()
+
+SCRIPT_DE = {
+    "pca_gmm": "analisis/3_pca_gmm.py",
+    "multicriterio": "analisis/4_multicriterio.py",
+    "iqr": "analisis/5_iqr_atipicos.py",
+}
+
+
+@st.cache_data
+def leer_resultado(carpeta, archivo, **kwargs):
+    """Lee un CSV de resultados/<carpeta>/<archivo>. Devuelve None si no existe."""
+    ruta = RESULTADOS_DIR / carpeta / archivo
+    if not ruta.exists():
+        return None
+    return pd.read_csv(ruta, **kwargs)
+
+
+def aviso_sin_resultados(carpeta):
+    st.warning(
+        f"No se encontraron los resultados en `resultados/{carpeta}/`. "
+        f"Ejecuta primero, desde la raíz del repo: `python {SCRIPT_DE[carpeta]}`",
+        icon="⚠️",
+    )
+
+
+# Configuración del documento para PCA y agrupamiento
+VARS_PCA = [
+    "registros_x1000hab",
+    "dinamica_x1000hab",
+    "pct_dinamica",
+    "licencias_vivienda_x1000hab",
+    "unidades_vivienda_x1000hab",
+    "unidades_obra_nueva_x1000hab",
+]
+
+# ============================================================
+# ADVERTENCIAS DE INTERPRETACIÓN
+# ============================================================
+with st.expander("⚠️ Cómo interpretar este tablero (léelo antes de usarlo)", expanded=False):
+    st.markdown(
+        "- **Es una herramienta de preselección**, no una recomendación de inversión. "
+        "Indica qué municipios merecen estudios más detallados.\n"
+        "- **El valor registrado no es el precio de mercado** del inmueble: es el valor declarado en el acto jurídico.\n"
+        "- **Un valor atípico no es un error ni una irregularidad**: es una observación que conviene revisar.\n"
+        "- **Las ponderaciones del multicriterio son supuestos**.\n"
+        "- Datos: IGAC (registros 2021-2023), DANE (proyecciones de población y licencias ELIC). "
+        "Nivel municipal."
+    )
+
 # ============================================================
 # NAVEGACIÓN POR PESTAÑAS
 # ============================================================
 tab_resumen, tab_ranking, tab_ficha, tab_correlaciones, tab_pca, tab_iqr, tab_clusters, tab_modelo = st.tabs([
     "📊 Resumen",
-    "🏆 Ranking",
+    "🏆 Preselección multicriterio",
     "🔍 Ficha Municipal",
     "📈 Correlaciones",
     "🔬 PCA",
-    "📦 IQR - Outliers",
-    "🎯 Clusters (K-Means)",
-    "🧪 Modelo (GMM)",
+    "📦 Atípicos (IQR)",
+    "🎯 K-Means",
+    "🧪 Modelo GMM",
 ])
 
 # ============================================================
@@ -297,51 +352,89 @@ with tab_resumen:
     st.plotly_chart(fig_comp, use_container_width=True)
 
 # ============================================================
-# TAB 2 - RANKING
+# TAB 2 - PRESELECCIÓN MULTICRITERIO
 # ============================================================
 with tab_ranking:
-    st.subheader("🏆 Ranking de oportunidades de inversión")
+    st.subheader("🏆 Preselección multicriterio — Valle de Aburrá")
     st.info(
-        "📌 Municipios ordenados por crecimiento interanual. "
-        "🟢 Crecimiento > 5% | 🟡 0–5% | 🔴 Decrecimiento | ⚪ Sin datos.",
+        "📌 Ordena los 10 municipios del Valle de Aburrá con una suma ponderada de tres criterios "
+        "normalizados de 0 a 1 (Min-Max). Ajusta los pesos según las prioridades de la empresa. "
+        "Es una **preselección para estudios posteriores**, no una recomendación de inversión.",
         icon="ℹ️",
     )
 
-    df_crec = calcular_crecimiento(df_filtrado)
+    ind_mc = leer_resultado("multicriterio", "01_indicadores.csv", dtype={"divipola": str})
+    frec_mc = leer_resultado("multicriterio", "04_frecuencia_top3.csv")
 
-    if df_crec is not None and len(df_crec) > 0:
-        var_rank = st.selectbox("Ordenar por", VARS_NORM, index=1, key="var_rank",
-                                format_func=etiqueta)
-
-        df_rank = df_crec.sort_values(var_rank, ascending=False).reset_index(drop=True)
-        df_rank.index = df_rank.index + 1
-
-        # Construir tabla con semáforos integrados en el valor
-        df_display = pd.DataFrame({"Municipio": df_rank["municipio"]})
-        for var in VARS_NORM:
-            short = etiqueta(var).replace(" por 1.000 hab.", "")
-            df_display[short] = df_rank[var].apply(
-                lambda v: f"{semaforo(v)} {v:+.1f}%" if pd.notna(v) else "⚪ N/A"
-            )
-        df_display.index = df_rank.index
-
-        st.dataframe(df_display, use_container_width=True, hide_index=False)
-
-        # Top 3 y Bottom 3
-        col_top, col_bot = st.columns(2)
-        with col_top:
-            st.markdown("#### 🟢 Top 3 — Mayor crecimiento")
-            top3 = df_rank.head(3)[["municipio", var_rank]].reset_index(drop=True)
-            top3.columns = ["Municipio", f"{etiqueta(var_rank)} (% anual)"]
-            st.dataframe(top3, use_container_width=True, hide_index=True)
-
-        with col_bot:
-            st.markdown("#### 🔴 Bottom 3 — Menor crecimiento")
-            bot3 = df_rank.tail(3)[["municipio", var_rank]].reset_index(drop=True)
-            bot3.columns = ["Municipio", f"{etiqueta(var_rank)} (% anual)"]
-            st.dataframe(bot3, use_container_width=True, hide_index=True)
+    if ind_mc is None:
+        aviso_sin_resultados("multicriterio")
     else:
-        st.warning("Se necesitan al menos 2 años seleccionados para calcular crecimiento.")
+        CRITERIOS_MC = {
+            "compraventas_x1000hab": "Compraventas por 1.000 hab.",
+            "obra_nueva_x1000hab": "Vivienda nueva autorizada por 1.000 hab.",
+            "crecimiento_poblacion_pct": "Crecimiento poblacional 2021-2023 (%)",
+        }
+
+        st.markdown("#### Pesos de los criterios")
+        c1, c2, c3 = st.columns(3)
+        pesos = {}
+        for col, (crit, nombre) in zip((c1, c2, c3), CRITERIOS_MC.items()):
+            with col:
+                pesos[crit] = st.slider(nombre, 0, 100, 33, step=1, key=f"peso_{crit}")
+
+        total = sum(pesos.values())
+        if total == 0:
+            st.warning("Asigna un peso mayor que cero a al menos un criterio.")
+        else:
+            st.caption("Pesos efectivos (normalizados a 100 %): " + " · ".join(
+                f"{CRITERIOS_MC[c]}: {w / total * 100:.0f} %" for c, w in pesos.items()))
+
+            rank_mc = ind_mc[["municipio"] + list(CRITERIOS_MC)].copy()
+            rank_mc["puntaje"] = sum(ind_mc[f"{c}_norm"] * (w / total) for c, w in pesos.items())
+            rank_mc = rank_mc.sort_values("puntaje", ascending=False).reset_index(drop=True)
+            rank_mc.index = rank_mc.index + 1
+
+            col_g, col_t = st.columns([3, 2])
+            with col_g:
+                fig_mc = px.bar(
+                    rank_mc.iloc[::-1], x="puntaje", y="municipio", orientation="h",
+                    text=rank_mc.iloc[::-1]["puntaje"].round(3),
+                    title="Puntaje multicriterio (0 a 1)",
+                    labels={"puntaje": "Puntaje", "municipio": ""},
+                    color="puntaje", color_continuous_scale="Blues", range_x=[0, 1],
+                )
+                fig_mc.update_layout(height=420, coloraxis_showscale=False)
+                st.plotly_chart(fig_mc, use_container_width=True)
+            with col_t:
+                st.markdown("#### Preselección (3 primeros)")
+                for pos, fila in rank_mc.head(3).iterrows():
+                    st.markdown(f"**{pos}. {fila['municipio']}** — puntaje {fila['puntaje']:.3f}")
+                st.markdown("#### Indicadores originales")
+                st.dataframe(
+                    rank_mc[["municipio"] + list(CRITERIOS_MC)].rename(columns=CRITERIOS_MC).round(2),
+                    use_container_width=True,
+                )
+
+        if frec_mc is not None:
+            st.markdown("---")
+            st.markdown("#### ¿Qué tan firme es la preselección? (análisis de sensibilidad)")
+            st.caption(
+                "Se probaron 66 combinaciones de pesos (pasos de 10 %, suma 100 %). "
+                "La barra muestra en qué porcentaje de ellas cada municipio queda entre los 3 primeros."
+            )
+            fig_sens = px.bar(
+                frec_mc.sort_values("pct_en_top3"), x="pct_en_top3", y="municipio", orientation="h",
+                text="pct_en_top3", range_x=[0, 100],
+                labels={"pct_en_top3": "% de escenarios en el top 3", "municipio": ""},
+                color="pct_en_top3", color_continuous_scale="Greens",
+            )
+            fig_sens.update_traces(texttemplate="%{text:.1f} %")
+            fig_sens.update_layout(height=400, coloraxis_showscale=False)
+            st.plotly_chart(fig_sens, use_container_width=True)
+            st.caption(
+                "Nota: las diferencias de crecimiento poblacional entre municipios son pequeñas "
+                "(1,74 % a 1,85 %) y la normalización Min-Max amplifica su efecto en el ranking."
+            )
 
 # ============================================================
 # TAB 3 - FICHA MUNICIPAL
@@ -440,6 +533,34 @@ with tab_ficha:
             height=400,
         )
         st.plotly_chart(fig_radar_ficha, use_container_width=True)
+
+        # Resultados de los modelos para este municipio
+        st.markdown("#### Resultados de los modelos para este municipio")
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            asig_f = leer_resultado("pca_gmm", "04_asignacion_gmm.csv")
+            if asig_f is not None:
+                sub_f = asig_f[asig_f["municipio"] == mun_ficha][["anio", "grupo", "perfil", "prob_pertenencia"]]
+                st.markdown("**Perfil GMM por año**")
+                st.dataframe(sub_f.rename(columns={"anio": "Año", "grupo": "Grupo", "perfil": "Perfil",
+                                                   "prob_pertenencia": "Probabilidad"}),
+                             use_container_width=True, hide_index=True)
+            else:
+                aviso_sin_resultados("pca_gmm")
+        with col_m2:
+            rk_f = leer_resultado("multicriterio", "02_ranking_pesos_iguales.csv")
+            fr_f = leer_resultado("multicriterio", "04_frecuencia_top3.csv")
+            if rk_f is not None and mun_ficha in set(rk_f["municipio"]):
+                fila_rk = rk_f[rk_f["municipio"] == mun_ficha].iloc[0]
+                st.metric("Posición multicriterio (pesos iguales)", f"{int(fila_rk['posicion'])} de {len(rk_f)}",
+                          help=f"Puntaje {fila_rk['puntaje']:.3f}")
+                if fr_f is not None:
+                    pct = fr_f.loc[fr_f["municipio"] == mun_ficha, "pct_en_top3"].iloc[0]
+                    st.metric("Escenarios de pesos en el top 3", f"{pct:.1f} %")
+            else:
+                st.caption("El multicriterio solo incluye los 10 municipios del Valle de Aburrá.")
+        st.caption("⚠️ Valores registrados ≠ precios de mercado. La ficha apoya la preselección, "
+                   "no reemplaza estudios financieros, comerciales, técnicos ni urbanísticos.")
     else:
         st.warning("No hay datos para este municipio.")
 
@@ -503,255 +624,247 @@ with tab_correlaciones:
         st.warning("Selecciona al menos 2 variables.")
 
 # ============================================================
-# TAB 5 - PCA
+# TAB 5 - PCA (misma configuración del documento: 48 obs., 6 variables)
 # ============================================================
 with tab_pca:
     st.subheader("Análisis de Componentes Principales (PCA)")
     st.info(
-        "📌 Reduce las 5 variables normalizadas a 2 componentes principales para "
-        "visualizar similitudes entre municipios. Municipios cercanos en el gráfico "
-        "tienen perfiles inmobiliarios similares.",
+        "📌 Resume 6 indicadores por habitante en 2 componentes, usando las 48 observaciones "
+        "municipio-año (16 territorios × 2021-2023). Puntos cercanos = perfiles inmobiliarios similares. "
+        "El % de registros con valor se excluye porque mide la cobertura de la fuente, no el mercado.",
         icon="ℹ️",
     )
 
-    anio_pca = st.selectbox("Año para PCA", anios, index=len(anios) - 1, key="anio_pca")
-    df_pca = df[df["anio"] == anio_pca].dropna(subset=VARS_NORM).copy()
+    df_pca = df.dropna(subset=VARS_PCA).copy()
+    escalador_pca = StandardScaler()
+    X_pca = escalador_pca.fit_transform(df_pca[VARS_PCA])
+    pca = PCA().fit(X_pca)
+    componentes = pca.transform(X_pca)
+    df_pca["PC1"], df_pca["PC2"] = componentes[:, 0], componentes[:, 1]
+    df_pca["etiqueta"] = df_pca["municipio"] + " " + df_pca["anio"].astype(str).str[-2:]
 
-    if len(df_pca) >= 3:
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(df_pca[VARS_NORM])
+    var_exp = pca.explained_variance_ratio_ * 100
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Varianza PC1", f"{var_exp[0]:.2f} %")
+    m2.metric("Varianza PC2", f"{var_exp[1]:.2f} %")
+    m3.metric("PC1 + PC2", f"{var_exp[:2].sum():.2f} %")
 
-        pca = PCA()
-        componentes = pca.fit_transform(X_scaled)
+    col_scree, col_biplot = st.columns(2)
+    with col_scree:
+        st.markdown("#### Varianza explicada")
+        fig_scree = go.Figure()
+        fig_scree.add_trace(go.Bar(x=[f"PC{i+1}" for i in range(len(var_exp))], y=var_exp, name="Individual"))
+        fig_scree.add_trace(go.Scatter(x=[f"PC{i+1}" for i in range(len(var_exp))], y=np.cumsum(var_exp),
+                                       name="Acumulada", mode="lines+markers"))
+        fig_scree.update_layout(yaxis_title="% Varianza explicada", height=420)
+        st.plotly_chart(fig_scree, use_container_width=True)
 
-        df_pca["PC1"] = componentes[:, 0]
-        df_pca["PC2"] = componentes[:, 1]
+    with col_biplot:
+        st.markdown("#### Biplot (PC1 vs PC2)")
+        anios_pca = st.multiselect("Años a mostrar", anios, default=anios, key="anios_pca")
+        vista = df_pca[df_pca["anio"].isin(anios_pca)]
+        fig_bi = px.scatter(vista, x="PC1", y="PC2", text="etiqueta", color=vista["anio"].astype(str),
+                            labels={"color": "Año"})
+        cargas_pc = pca.components_[:2, :]
+        escala = float(np.abs(componentes[:, :2]).max()) * 0.8
+        for i, var in enumerate(VARS_PCA):
+            fig_bi.add_annotation(ax=0, ay=0, axref="x", ayref="y",
+                                  x=cargas_pc[0, i] * escala, y=cargas_pc[1, i] * escala,
+                                  showarrow=True, arrowhead=2, arrowsize=1.5,
+                                  text=etiqueta(var).replace(" por 1.000 hab.", ""))
+        fig_bi.update_traces(textposition="top center", marker=dict(size=8), textfont_size=9)
+        fig_bi.update_layout(height=420)
+        st.plotly_chart(fig_bi, use_container_width=True)
 
-        col_scree, col_biplot = st.columns(2)
-
-        with col_scree:
-            st.markdown("#### Varianza explicada")
-            var_exp = pca.explained_variance_ratio_ * 100
-            var_acum = np.cumsum(var_exp)
-            fig_scree = go.Figure()
-            fig_scree.add_trace(go.Bar(
-                x=[f"PC{i+1}" for i in range(len(var_exp))],
-                y=var_exp, name="Individual",
-            ))
-            fig_scree.add_trace(go.Scatter(
-                x=[f"PC{i+1}" for i in range(len(var_acum))],
-                y=var_acum, name="Acumulada", mode="lines+markers",
-            ))
-            fig_scree.update_layout(yaxis_title="% Varianza explicada", height=400)
-            st.plotly_chart(fig_scree, use_container_width=True)
-
-        with col_biplot:
-            st.markdown("#### Biplot (PC1 vs PC2)")
-            fig_bi = px.scatter(
-                df_pca, x="PC1", y="PC2", text="municipio",
-                title=f"Proyección PCA — {anio_pca}",
-            )
-            loadings = pca.components_[:2, :]
-            scale = float(np.abs(componentes[:, :2]).max()) * 0.8
-            for i, var in enumerate(VARS_NORM):
-                fig_bi.add_annotation(
-                    ax=0, ay=0,
-                    x=loadings[0, i] * scale, y=loadings[1, i] * scale,
-                    showarrow=True, arrowhead=2, arrowsize=1.5,
-                    text=etiqueta(var).replace(" por 1.000 hab.", ""),
-                )
-            fig_bi.update_traces(textposition="top center", marker=dict(size=8))
-            fig_bi.update_layout(height=400)
-            st.plotly_chart(fig_bi, use_container_width=True)
-
-        with st.expander("Ver cargas por componente"):
-            cargas = pd.DataFrame(
-                pca.components_.T,
-                index=[etiqueta(v) for v in VARS_NORM],
-                columns=[f"PC{i+1}" for i in range(len(VARS_NORM))],
-            ).round(3)
-            st.dataframe(cargas, use_container_width=True)
-    else:
-        st.warning("No hay suficientes datos para realizar el PCA con los filtros actuales.")
+    with st.expander("Ver cargas por componente"):
+        st.dataframe(pd.DataFrame(pca.components_[:2].T, index=[etiqueta(v) for v in VARS_PCA],
+                                  columns=["PC1", "PC2"]).round(3), use_container_width=True)
+        st.caption("PC1 ≈ intensidad registral y de construcción · PC2 ≈ proporción de dinámica y licencias.")
 
 # ============================================================
-# TAB 6 - IQR / OUTLIERS
+# TAB 6 - ATÍPICOS EN VALORES DE COMPRAVENTA (IQR)
 # ============================================================
 with tab_iqr:
-    st.subheader("Detección de outliers (IQR)")
+    st.subheader("📦 Valores atípicos en compraventas (IQR)")
     st.info(
-        "📌 Identifica municipios con valores atípicos (muy altos o bajos) respecto al grupo. "
-        "Útil para detectar mercados excepcionales o datos sospechosos.",
+        "📌 Compraventas (código 125) con valor válido. Límites IQR (factor 1,5) calculados por "
+        "municipio y año, con mínimo 30 registros. **Un atípico es una observación para revisar, "
+        "no un error ni una irregularidad.** El valor registrado no es el precio comercial.",
         icon="ℹ️",
     )
 
-    anio_iqr = st.selectbox("Año", anios, index=len(anios) - 1, key="anio_iqr")
-    var_iqr = st.selectbox("Variable", VARS_NORM, index=0, key="var_iqr",
-                           format_func=etiqueta)
+    esc_iqr = leer_resultado("iqr", "01_escenarios.csv")
+    imp_iqr = leer_resultado("iqr", "02_impacto_estadisticos.csv")
+    lim_iqr = leer_resultado("iqr", "03_limites_municipio_anio.csv", dtype={"DIVIPOLA": str})
 
-    df_iqr = df[df["anio"] == anio_iqr].dropna(subset=[var_iqr]).copy()
-
-    if len(df_iqr) >= 4:
-        Q1 = df_iqr[var_iqr].quantile(0.25)
-        Q3 = df_iqr[var_iqr].quantile(0.75)
-        IQR_val = Q3 - Q1
-        lim_inf = Q1 - 1.5 * IQR_val
-        lim_sup = Q3 + 1.5 * IQR_val
-
-        df_iqr["outlier"] = (df_iqr[var_iqr] < lim_inf) | (df_iqr[var_iqr] > lim_sup)
-
-        col_box, col_tabla = st.columns([1, 1])
-
-        with col_box:
-            fig_box = px.box(
-                df_iqr, y=var_iqr, points="all", hover_data=["municipio"],
-                title=f"Distribución de {etiqueta(var_iqr)} — {anio_iqr}",
-                labels={var_iqr: etiqueta(var_iqr)},
-            )
-            fig_box.update_layout(height=450)
-            st.plotly_chart(fig_box, use_container_width=True)
-
-        with col_tabla:
-            st.markdown("#### Límites IQR")
-            st.write(f"- **Q1:** {Q1:,.2f}")
-            st.write(f"- **Q3:** {Q3:,.2f}")
-            st.write(f"- **IQR:** {IQR_val:,.2f}")
-            st.write(f"- **Límite inferior:** {lim_inf:,.2f}")
-            st.write(f"- **Límite superior:** {lim_sup:,.2f}")
-
-            outliers = df_iqr[df_iqr["outlier"]][["municipio", var_iqr]].sort_values(
-                var_iqr, ascending=False
-            )
-            st.markdown(f"#### Outliers detectados ({len(outliers)})")
-            if len(outliers) > 0:
-                st.dataframe(outliers.rename(columns={var_iqr: etiqueta(var_iqr)}),
-                             use_container_width=True, hide_index=True)
-            else:
-                st.info("No se detectaron outliers con estos filtros.")
+    if esc_iqr is None:
+        aviso_sin_resultados("iqr")
     else:
-        st.warning("No hay suficientes datos para el análisis IQR.")
+        st.markdown("#### Escenarios evaluados")
+        tabla_esc = esc_iqr.merge(imp_iqr[["escenario", "cambio_media_pct", "cambio_mediana_pct"]],
+                                  on="escenario") if imp_iqr is not None else esc_iqr
+        st.dataframe(
+            tabla_esc.rename(columns={
+                "escenario": "Escenario", "registros_evaluados": "Registros evaluados",
+                "atipicos": "Atípicos", "proporcion_pct": "Proporción (%)",
+                "atipicos_altos": "Altos", "atipicos_bajos": "Bajos",
+                "cambio_media_pct": "Cambio media (%)", "cambio_mediana_pct": "Cambio mediana (%)",
+                "municipio_anio_excluidos_por_menos_de_30": "Mun-año excluidos (<30)",
+            }),
+            use_container_width=True, hide_index=True,
+        )
+        st.caption(
+            "Casi todos los atípicos son valores altos: el límite inferior del IQR suele ser negativo, "
+            "así que en la práctica el método marca valores excepcionalmente altos."
+        )
+
+        if lim_iqr is not None:
+            st.markdown("#### Detalle por municipio y año — escenario 10 municipios, folio único")
+            fig_pct = px.bar(
+                lim_iqr, x="pct_atipicos", y="MUNICIPIO", color=lim_iqr["YEAR_RADICA"].astype(str),
+                barmode="group", orientation="h",
+                labels={"pct_atipicos": "% de compraventas atípicas", "MUNICIPIO": "", "color": "Año"},
+            )
+            fig_pct.update_layout(height=500)
+            st.plotly_chart(fig_pct, use_container_width=True)
+
+            vista_lim = lim_iqr[["MUNICIPIO", "YEAR_RADICA", "registros", "atipicos", "pct_atipicos",
+                                 "mediana_valor", "limite_superior"]].copy()
+            for c in ["mediana_valor", "limite_superior"]:
+                vista_lim[c] = (vista_lim[c] / 1e6).round(1)
+            st.dataframe(
+                vista_lim.rename(columns={
+                    "MUNICIPIO": "Municipio", "YEAR_RADICA": "Año", "registros": "Registros",
+                    "atipicos": "Atípicos", "pct_atipicos": "% atípicos",
+                    "mediana_valor": "Mediana (millones $)", "limite_superior": "Límite superior (millones $)",
+                }),
+                use_container_width=True, hide_index=True,
+            )
 
 # ============================================================
-# TAB 7 - CLUSTERS K-MEANS
+# TAB 7 - K-MEANS (sobre el mismo espacio PCA del documento)
 # ============================================================
 with tab_clusters:
-    st.subheader("Clustering K-Means")
+    st.subheader("🎯 Agrupamiento K-Means (comparación)")
     st.info(
-        "📌 Agrupa municipios con perfiles inmobiliarios similares. "
-        "Ajusta k y observa cómo se reagrupan. "
-        "El Silhouette Score indica la calidad (más alto = mejor separación).",
+        "📌 K-Means sobre PC1 y PC2 de las 48 observaciones, como referencia para comparar con el "
+        "modelo elegido (GMM). Mueve k y observa cómo cambian los grupos y la silueta "
+        "(más alta = grupos mejor separados).",
         icon="ℹ️",
     )
 
-    anio_km = st.selectbox("Año", anios, index=len(anios) - 1, key="anio_km")
-    n_clusters = st.slider("Número de clusters (k)", 2, 6, 3, key="n_clusters")
+    S_km = df_pca[["PC1", "PC2"]].to_numpy()
+    n_clusters = st.slider("Número de grupos (k)", 2, 6, 3, key="n_clusters")
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10).fit(S_km)
+    df_km = df_pca[["municipio", "anio", "etiqueta", "PC1", "PC2"] + VARS_PCA].copy()
+    df_km["grupo"] = (kmeans.labels_ + 1).astype(str)
 
-    df_km = df[df["anio"] == anio_km].dropna(subset=VARS_NORM).copy()
+    st.metric("Silueta", f"{silhouette_score(S_km, kmeans.labels_):.3f}",
+              help="De -1 a 1. Mayor a 0,5 = buena separación.")
 
-    if len(df_km) >= n_clusters + 1:
-        scaler_km = StandardScaler()
-        X_km = scaler_km.fit_transform(df_km[VARS_NORM])
+    fig_km = px.scatter(df_km, x="PC1", y="PC2", color="grupo", text="etiqueta",
+                        hover_data=["municipio", "anio"],
+                        title=f"K-Means (k = {n_clusters}) sobre PC1-PC2",
+                        color_discrete_sequence=px.colors.qualitative.Set2)
+    fig_km.update_traces(textposition="top center", marker=dict(size=10), textfont_size=9)
+    fig_km.update_layout(height=500)
+    st.plotly_chart(fig_km, use_container_width=True)
 
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-        labels_km = kmeans.fit_predict(X_km)
-        df_km["cluster"] = labels_km.astype(str)
+    st.markdown("#### Promedios por grupo")
+    resumen_km = df_km.groupby("grupo")[VARS_PCA].mean().round(2)
+    resumen_km["observaciones"] = df_km["grupo"].value_counts()
+    st.dataframe(resumen_km.rename(columns={v: etiqueta(v) for v in VARS_PCA}), use_container_width=True)
 
-        # Silhouette Score
-        sil_score = silhouette_score(X_km, labels_km)
-        st.metric("Silhouette Score", f"{sil_score:.3f}",
-                  help="Rango: -1 a 1. Mayor a 0.5 = buena separación. 0.25–0.5 = aceptable.")
-
-        # PCA para visualización 2D
-        pca_km = PCA(n_components=2)
-        coords = pca_km.fit_transform(X_km)
-        df_km["PC1"] = coords[:, 0]
-        df_km["PC2"] = coords[:, 1]
-
-        fig_km = px.scatter(
-            df_km, x="PC1", y="PC2", color="cluster",
-            hover_data=["municipio"] + VARS_NORM, text="municipio",
-            title=f"Clusters K-Means (k={n_clusters}) — {anio_km}",
-            color_discrete_sequence=px.colors.qualitative.Set2,
-        )
-        fig_km.update_traces(textposition="top center", marker=dict(size=10))
-        fig_km.update_layout(height=500)
-        st.plotly_chart(fig_km, use_container_width=True)
-
-        # Tabla de miembros por cluster
-        st.markdown("#### 📋 Municipios por cluster")
-        for c in sorted(df_km["cluster"].unique()):
-            miembros = df_km[df_km["cluster"] == c]["municipio"].tolist()
-            st.markdown(f"**Cluster {c}** ({len(miembros)}): {', '.join(sorted(miembros))}")
-
-        st.markdown("---")
-
-        # Resumen por cluster
-        st.markdown("#### Promedios por cluster")
-        resumen = df_km.groupby("cluster")[VARS_NORM].mean().round(2)
-        resumen_display = resumen.rename(columns={v: etiqueta(v) for v in VARS_NORM})
-        st.dataframe(resumen_display, use_container_width=True)
-
-        # Radar por cluster
-        st.markdown("#### Perfil de cada cluster")
-        rango = resumen.max() - resumen.min()
-        rango = rango.replace(0, 1)
-        resumen_norm = (resumen - resumen.min()) / rango
-        resumen_norm = resumen_norm.fillna(0)
-
-        fig_radar = go.Figure()
-        theta_labels = [etiqueta(v).replace(" por 1.000 hab.", "") for v in VARS_NORM]
-        theta_labels_closed = theta_labels + [theta_labels[0]]
-
-        for cluster in resumen_norm.index:
-            vals = resumen_norm.loc[cluster]
-            if isinstance(vals, (int, float, np.floating)):
-                r_values = [float(vals)] * len(VARS_NORM) + [float(vals)]
-            else:
-                r_values = vals.values.tolist() + [vals.values[0]]
-            fig_radar.add_trace(go.Scatterpolar(
-                r=r_values, theta=theta_labels_closed,
-                name=f"Cluster {cluster}", fill="toself", opacity=0.5,
-            ))
-        fig_radar.update_layout(
-            polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
-            height=450,
-        )
-        st.plotly_chart(fig_radar, use_container_width=True)
-
-        # Silhouette por k
-        with st.expander("🔎 Explorar Silhouette Score por número de clusters"):
-            sil_scores = []
-            k_range = range(2, min(len(df_km), 7))
-            for k in k_range:
-                km_temp = KMeans(n_clusters=k, random_state=42, n_init=10)
-                labs = km_temp.fit_predict(X_km)
-                sil_scores.append(silhouette_score(X_km, labs))
-
-            fig_sil = px.line(
-                x=list(k_range), y=sil_scores,
-                markers=True, title="Silhouette Score vs. k",
-                labels={"x": "Número de clusters (k)", "y": "Silhouette Score"},
-            )
-            fig_sil.update_layout(height=300)
-            st.plotly_chart(fig_sil, use_container_width=True)
-    else:
-        st.warning("No hay suficientes datos para el clustering.")
+    with st.expander("🔎 Silueta por número de grupos"):
+        k_range = list(range(2, 7))
+        siluetas = [silhouette_score(S_km, KMeans(k, random_state=42, n_init=10).fit_predict(S_km))
+                    for k in k_range]
+        fig_sil = px.line(x=k_range, y=siluetas, markers=True,
+                          labels={"x": "Número de grupos (k)", "y": "Silueta"})
+        fig_sil.update_layout(height=300)
+        st.plotly_chart(fig_sil, use_container_width=True)
 
 # ============================================================
-# TAB 8 - MODELO GMM (placeholder)
+# TAB 8 - MODELO GMM (modelo elegido)
 # ============================================================
 with tab_modelo:
-    st.subheader("🧪 Modelo — Mezclas Gaussianas (GMM)")
-
+    st.subheader("🧪 Modelo de mezclas gaussianas (GMM) — modelo elegido")
     st.info(
-        "⏳ **Pendiente:** esta sección se habilitará cuando el compañero "
-        "entregue los resultados del modelo GMM.\n\n"
-        "**Formato esperado:** un CSV con columnas:\n"
-        "- `municipio`\n"
-        "- `anio`\n"
-        "- `cluster_gmm` (cluster asignado)\n"
-        "- `prob_cluster_0`, `prob_cluster_1`, ... (probabilidades de pertenencia)"
+        "📌 El GMM agrupa las observaciones municipio-año en perfiles y da a cada una una "
+        "**probabilidad de pertenencia**. Los grupos son perfiles estadísticos, no categorías de "
+        "atractivo ni de viabilidad de inversión.",
+        icon="ℹ️",
     )
+
+    asig = leer_resultado("pca_gmm", "04_asignacion_gmm.csv")
+    comp = leer_resultado("pca_gmm", "03_comparacion_modelos.csv")
+    perf = leer_resultado("pca_gmm", "05_perfil_grupos.csv")
+    estab = leer_resultado("pca_gmm", "06_estabilidad.csv")
+    valt = leer_resultado("pca_gmm", "07_validacion_temporal.csv")
+
+    if asig is None:
+        aviso_sin_resultados("pca_gmm")
+    else:
+        asig["etiqueta"] = asig["municipio"] + " " + asig["anio"].astype(str).str[-2:]
+        asig["grupo_perfil"] = asig["grupo"] + ": " + asig["perfil"]
+
+        fig_gmm = px.scatter(
+            asig, x="PC1", y="PC2", color="grupo_perfil", text="etiqueta",
+            size=asig["prob_pertenencia"].clip(lower=0.3), size_max=14,
+            hover_data={"municipio": True, "anio": True, "prob_pertenencia": ":.3f",
+                        "etiqueta": False, "grupo_perfil": False},
+            labels={"grupo_perfil": "Grupo"},
+            title="Perfiles de municipios-año (GMM, k = 3)",
+            color_discrete_sequence=["#C44E52", "#DD8452", "#4C72B0"],
+        )
+        fig_gmm.update_traces(textposition="top center", textfont_size=9)
+        fig_gmm.update_layout(height=550, legend=dict(orientation="h", y=-0.15))
+        st.plotly_chart(fig_gmm, use_container_width=True)
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown("#### Municipios por grupo")
+            for g, sub in asig.groupby("grupo"):
+                st.markdown(f"**{g} — {sub['perfil'].iloc[0]}** ({len(sub)} obs.)")
+                st.caption(", ".join(f"{m} {a}" for m, a in zip(sub["municipio"], sub["anio"])))
+            trans = asig[asig["en_transicion"]]
+            if len(trans):
+                st.markdown("#### En transición (probabilidad < 0,80)")
+                st.dataframe(trans[["municipio", "anio", "grupo", "prob_pertenencia"]],
+                             use_container_width=True, hide_index=True)
+        with col_b:
+            if perf is not None:
+                st.markdown("#### Perfil promedio de cada grupo")
+                st.dataframe(perf.set_index("grupo").drop(columns=["perfil"])
+                             .rename(columns={v: etiqueta(v) for v in VARS_PCA}).T,
+                             use_container_width=True)
+
+        st.markdown("---")
+        st.markdown("#### Evaluación del modelo")
+        if comp is not None:
+            st.markdown("**K-Means vs GMM por número de grupos**")
+            st.dataframe(comp.rename(columns={
+                "k": "k", "silueta_kmeans": "Silueta K-Means", "silueta_gmm": "Silueta GMM",
+                "davies_bouldin_kmeans": "Davies-Bouldin K-Means", "davies_bouldin_gmm": "Davies-Bouldin GMM",
+                "bic_gmm": "BIC GMM", "aic_gmm": "AIC GMM",
+                "prob_media_pertenencia_gmm": "Prob. media pertenencia", "ari_kmeans_vs_gmm": "ARI K-Means vs GMM",
+            }), use_container_width=True, hide_index=True)
+            st.caption("Silueta: mayor es mejor · Davies-Bouldin y BIC: menor es mejor.")
+        c_e, c_v = st.columns(2)
+        with c_e:
+            if estab is not None:
+                st.markdown("**Estabilidad (ARI: 1 = asignaciones idénticas)**")
+                st.dataframe(estab, use_container_width=True, hide_index=True)
+        with c_v:
+            if valt is not None:
+                st.markdown("**Validación temporal (ajuste 2021-2022, aplicado a 2023)**")
+                st.dataframe(valt.T.rename(columns={0: "valor"}), use_container_width=True)
+
+        st.download_button(
+            "⬇️ Descargar asignación GMM (CSV)",
+            asig.drop(columns=["etiqueta", "grupo_perfil"]).to_csv(index=False).encode("utf-8"),
+            file_name="asignacion_gmm.csv", mime="text/csv",
+        )
 
 # ============================================================
 # FOOTER

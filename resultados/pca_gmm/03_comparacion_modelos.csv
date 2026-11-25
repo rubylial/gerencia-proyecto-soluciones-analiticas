@@ -1,0 +1,4 @@
+k,silueta_kmeans,silueta_gmm,davies_bouldin_kmeans,davies_bouldin_gmm,bic_gmm,aic_gmm,prob_media_pertenencia_gmm,ari_kmeans_vs_gmm
+2,0.635,0.614,0.691,0.756,327.075,306.491,0.99,0.818
+3,0.634,0.634,0.664,0.664,337.081,305.27,0.989,1.0
+4,0.394,0.507,0.801,0.539,343.888,300.85,0.982,0.482

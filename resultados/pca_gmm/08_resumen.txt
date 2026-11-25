@@ -1,0 +1,61 @@
+RESUMEN PCA + GMM
+============================================================
+Observaciones: 48 | Variables: 6
+
+PCA:
+componente  varianza_pct  acumulada_pct  autovalor
+       PC1         59.91          59.91       3.67
+       PC2         20.17          80.08       1.24
+       PC3         10.78          90.86       0.66
+       PC4          9.07          99.93       0.56
+       PC5          0.04          99.97       0.00
+       PC6          0.03         100.00       0.00
+Criterio de Kaiser (autovalor > 1): 2 componentes
+
+Cargas:
+                                PC1    PC2
+registros_x1000hab            0.469 -0.263
+dinamica_x1000hab             0.477 -0.134
+pct_dinamica                  0.003  0.832
+licencias_vivienda_x1000hab   0.307  0.466
+unidades_vivienda_x1000hab    0.478  0.044
+unidades_obra_nueva_x1000hab  0.479  0.042
+
+Comparación de modelos:
+ k  silueta_kmeans  silueta_gmm  davies_bouldin_kmeans  davies_bouldin_gmm  bic_gmm  aic_gmm  prob_media_pertenencia_gmm  ari_kmeans_vs_gmm
+ 2           0.635        0.614                  0.691               0.756  327.075  306.491                       0.990              0.818
+ 3           0.634        0.634                  0.664               0.664  337.081  305.270                       0.989              1.000
+ 4           0.394        0.507                  0.801               0.539  343.888  300.850                       0.982              0.482
+
+Modelo elegido: GMM k = 3, {'covariance_type': 'full', 'n_init': 5, 'random_state': 42}
+
+Perfil de los grupos:
+         registros_x1000hab  dinamica_x1000hab  pct_dinamica  licencias_vivienda_x1000hab  unidades_vivienda_x1000hab  unidades_obra_nueva_x1000hab  n_observaciones                                    perfil
+grupo                                                                                                                                                                                                         
+Grupo A              503.69             251.42         49.08                         2.51                       23.21                         22.17                6                 Mayor actividad registral
+Grupo B              258.75             158.98         62.62                         9.80                       22.64                         21.03                5          Mayor licenciamiento de vivienda
+Grupo C              121.71              66.47         54.79                         1.13                        6.40                          5.53               37  Menor actividad registral y constructiva
+
+Municipios-año por grupo:
+  Grupo A: El Retiro 2023, Rionegro 2022, Rionegro 2023, Sabaneta 2021, Sabaneta 2022, Sabaneta 2023
+  Grupo B: El Retiro 2021, El Retiro 2022, La Ceja 2021, La Ceja 2022, La Ceja 2023
+  Grupo C: Barbosa 2021, Barbosa 2022, Barbosa 2023, Bello 2021, Bello 2022, Bello 2023, Bogotá 2021, Bogotá 2022, Bogotá 2023, Caldas 2021, Caldas 2022, Caldas 2023, Copacabana 2021, Copacabana 2022, Copacabana 2023, Envigado 2021, Envigado 2022, Envigado 2023, Girardota 2021, Girardota 2022, Girardota 2023, Guarne 2021, Guarne 2022, Guarne 2023, Itagüí 2021, Itagüí 2022, Itagüí 2023, La Estrella 2021, La Estrella 2022, La Estrella 2023, Marinilla 2021, Marinilla 2022, Marinilla 2023, Medellín 2021, Medellín 2022, Medellín 2023, Rionegro 2021
+
+En transición (probabilidad < 0.8):
+municipio  anio   grupo  prob_pertenencia
+ Rionegro  2021 Grupo C              0.72
+
+Atípicos multivariados (5 % de menor densidad):
+municipio  anio   grupo  log_densidad
+ Sabaneta  2022 Grupo A        -4.828
+El Retiro  2022 Grupo B        -5.815
+  La Ceja  2022 Grupo B        -5.174
+
+Estabilidad:
+                         prueba  minimo  media  percentil_5
+          ARI entre 30 semillas   0.981  0.999        0.990
+ARI bootstrap (200 remuestreos)   0.035  0.722        0.398
+
+Validación temporal (ajuste 2021-2022, aplicado a 2023):
+ log_verosimilitud_media_entreno  log_verosimilitud_media_2023  silueta_2023  ari_2023_vs_modelo_completo
+                          -2.524                         -3.15         0.623                        0.789
